@@ -133,7 +133,8 @@ describe("Workflow path integration", () => {
       expect(workflow).toContain("Upload AppImage (Linux)");
       expect(workflow).toContain("Upload RPM (Linux)");
       expect(workflow).toContain("Upload ZST (Linux)");
-      expect(workflow).toContain("path: ${{ inputs.name }}-*.pkg.tar.zst");
+      expect(workflow).toContain("Generate Linux-safe app name");
+      expect(workflow).toContain("path: ${{ steps.app-name.outputs.safe_name }}-*.pkg.tar.zst");
     });
   });
 

@@ -197,6 +197,16 @@ jobs:
 
           git checkout -- src-tauri/Cargo.lock
 
+      - name: Generate Linux-safe app name
+        id: app-name
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          SAFE_NAME=$(echo "${{ inputs.name }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//')
+          echo "safe_name=$SAFE_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Upload DMG (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v6
@@ -209,8 +219,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ inputs.name }}-Linux-deb
-          path: ${{ inputs.name }}.deb
+          name: ${{ steps.app-name.outputs.safe_name }}-Linux-deb
+          path: ${{ steps.app-name.outputs.safe_name }}.deb
           retention-days: 3
           if-no-files-found: ignore
 
@@ -218,8 +228,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ inputs.name }}-Linux-AppImage
-          path: ${{ inputs.name }}.AppImage
+          name: ${{ steps.app-name.outputs.safe_name }}-Linux-AppImage
+          path: ${{ steps.app-name.outputs.safe_name }}.AppImage
           retention-days: 3
           if-no-files-found: ignore
 
@@ -227,8 +237,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ inputs.name }}-Linux-rpm
-          path: ${{ inputs.name }}.rpm
+          name: ${{ steps.app-name.outputs.safe_name }}-Linux-rpm
+          path: ${{ steps.app-name.outputs.safe_name }}.rpm
           retention-days: 3
           if-no-files-found: ignore
 
@@ -236,8 +246,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ inputs.name }}-Linux-zst
-          path: ${{ inputs.name }}-*.pkg.tar.zst
+          name: ${{ steps.app-name.outputs.safe_name }}-Linux-zst
+          path: ${{ steps.app-name.outputs.safe_name }}-*.pkg.tar.zst
           retention-days: 3
           if-no-files-found: ignore
 
