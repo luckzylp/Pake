@@ -180,6 +180,11 @@ async function mergeLinuxConfig(
 
   const linuxName = generateLinuxPackageName(name);
   const desktopFileName = `com.pake.${linuxName}.desktop`;
+
+  // Override productName so Tauri's deb/rpm bundler generates a .desktop
+  // file with the same name as the Pake-managed one (com.pake.<name>.desktop),
+  // avoiding duplicate desktop entries in the package.
+  tauriConf.productName = `com.pake.${linuxName}`;
   const desktopContent = buildLinuxDesktopContent(
     name,
     options.title,
