@@ -107,6 +107,87 @@ function hasImmersiveHeader(config = window["pakeConfig"] || {}) {
     : config.hide_window_decorations === true;
 }
 
+async function handleWindowAction(action) {
+  const appWindow = window.__TAURI__?.window?.getCurrentWindow?.();
+  if (!appWindow) return;
+  try {
+    switch (action) {
+      case "close":
+        await appWindow.close();
+        break;
+      case "minimize":
+        await appWindow.minimize();
+        break;
+      case "maximize":
+        const isMaximized = await appWindow.isMaximized();
+        if (isMaximized) {
+          await appWindow.unmaximize();
+        } else {
+          await appWindow.maximize();
+        }
+        break;
+    }
+  } catch (e) {
+    console.warn("[Pake] Window action failed:", action, e);
+  }
+}
+
+function createWindowControls() {
+  if (!/linux/i.test(getDesktopPlatform())) return;
+
+  const config = window["pakeConfig"] || {};
+  if (!config.hide_window_decorations) return;
+
+  if (!window.__TAURI__?.window?.getCurrentWindow) return;
+
+  const position = config.window_buttons_position || "right";
+
+  const container = document.createElement("div");
+  container.id = "pake-window-controls";
+  container.className = position;
+
+  // Button order follows GNOME convention
+  const buttons =
+    position === "left"
+      ? ["close", "minimize", "maximize"]
+      : ["minimize", "maximize", "close"];
+
+  // SVG icons
+  const icons = {
+    close:
+      '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    minimize:
+      '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    maximize:
+      '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  };
+
+  buttons.forEach((type) => {
+    const btn = document.createElement("button");
+    btn.className = "pake-wc-btn pake-wc-" + type;
+    btn.setAttribute("data-action", type);
+    btn.innerHTML = icons[type];
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      handleWindowAction(type);
+    });
+    container.appendChild(btn);
+  });
+
+  document.body.appendChild(container);
+
+  // Adjust drag region to avoid overlap with buttons
+  const topDom = document.getElementById("pake-top-dom");
+  if (topDom) {
+    if (position === "left") {
+      topDom.style.paddingLeft = "120px";
+    } else {
+      topDom.style.paddingRight = "120px";
+    }
+  }
+}
+
 function isEditableElement(element) {
   if (!element) return false;
 
@@ -585,6 +666,8 @@ document.addEventListener("DOMContentLoaded", () => {
     topDom.id = "pake-top-dom";
     document.body.appendChild(topDom);
   }
+
+  createWindowControls();
 
   const domEl = document.getElementById("pake-top-dom");
 

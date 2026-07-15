@@ -524,6 +524,88 @@ window.addEventListener("DOMContentLoaded", (_event) => {
       -webkit-user-select: none;
       z-index: 99999;
     }
+
+    #pake-window-controls {
+      position: fixed;
+      top: 0;
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      height: 36px;
+      padding: 0 10px;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .pake-wc-btn {
+      pointer-events: auto;
+    }
+
+    #pake-window-controls.left {
+      left: 0;
+    }
+
+    #pake-window-controls.right {
+      right: 0;
+    }
+
+    .pake-wc-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(128, 128, 128, 0.25);
+      transition: background 0.15s ease;
+      padding: 0;
+      color: #555;
+      outline: none;
+    }
+
+    .pake-wc-btn:hover {
+      background: rgba(128, 128, 128, 0.45);
+      color: #222;
+    }
+
+    .pake-wc-btn:active {
+      background: rgba(128, 128, 128, 0.6);
+    }
+
+    .pake-wc-close:hover {
+      background: rgba(232, 72, 72, 0.85);
+      color: #fff;
+    }
+
+    .pake-wc-close:active {
+      background: rgba(200, 50, 50, 0.9);
+      color: #fff;
+    }
+
+    .pake-wc-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .pake-wc-btn {
+        background: rgba(200, 200, 200, 0.15);
+        color: #ccc;
+      }
+      .pake-wc-btn:hover {
+        background: rgba(200, 200, 200, 0.3);
+        color: #fff;
+      }
+      .pake-wc-close:hover {
+        background: rgba(232, 72, 72, 0.85);
+        color: #fff;
+      }
+    }
     `;
     document.head.appendChild(topPaddingStyleElement);
   }

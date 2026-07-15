@@ -6,6 +6,8 @@ use tauri::Manager;
 use tauri_plugin_window_state::Builder as WindowStatePlugin;
 use tauri_plugin_window_state::StateFlags;
 
+#[cfg(target_os = "linux")]
+use std::sync::OnceLock;
 #[cfg(target_os = "macos")]
 use std::time::Duration;
 
@@ -28,6 +30,41 @@ use app::{
     window::{open_additional_window_safe, set_window, MultiWindowState},
 };
 use util::get_pake_config;
+
+#[cfg(target_os = "linux")]
+static LINUX_BUTTON_LAYOUT: OnceLock<(String, &'static str)> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+fn init_linux_button_layout() -> &'static (String, &'static str) {
+    LINUX_BUTTON_LAYOUT.get_or_init(|| {
+        let raw = std::process::Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.wm.preferences", "button-layout"])
+            .output()
+            .ok()
+            .and_then(|out| {
+                if out.status.success() {
+                    String::from_utf8(out.stdout).ok()
+                } else {
+                    None
+                }
+            })
+            .map(|s| s.trim().trim_matches('\'').to_string())
+            .unwrap_or_else(|| ":minimize,maximize,close".to_string());
+
+        let position = parse_button_layout(&raw);
+        (raw, position)
+    })
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_linux_button_position() -> &'static str {
+    init_linux_button_layout().1
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_linux_button_layout_raw() -> &'static str {
+    &init_linux_button_layout().0
+}
 
 #[cfg(any(target_os = "linux", test))]
 fn is_disabled_env_value(value: &str) -> bool {
@@ -86,6 +123,19 @@ fn should_force_wayland_gdk_backend(
 }
 
 #[cfg(target_os = "linux")]
+fn parse_button_layout(layout: &str) -> &'static str {
+    // Format: "left_buttons:right_buttons"
+    // If "close" appears before the colon, buttons are on the left
+    if let Some(colon_pos) = layout.find(':') {
+        let left_part = &layout[..colon_pos];
+        if left_part.contains("close") {
+            return "left";
+        }
+    }
+    "right"
+}
+
+#[cfg(target_os = "linux")]
 fn apply_linux_gdk_backend() {
     if should_force_wayland_gdk_backend(
         std::env::var(GDK_BACKEND).ok().as_deref(),
@@ -136,6 +186,7 @@ pub fn run_app() {
     {
         apply_linux_gdk_backend();
         apply_linux_webkit_runtime_flags();
+        let _ = get_linux_button_position(); // Detect and cache button position
     }
 
     let (pake_config, tauri_config) = get_pake_config();

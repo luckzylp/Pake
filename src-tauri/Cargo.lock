@@ -2566,6 +2566,7 @@ dependencies = [
 name = "pake"
 version = "3.14.0"
 dependencies = [
+ "gtk",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

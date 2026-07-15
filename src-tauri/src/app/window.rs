@@ -18,6 +18,9 @@ use tauri::Theme;
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
 
+#[cfg(target_os = "linux")]
+use crate::get_linux_button_layout_raw;
+
 #[cfg(target_os = "windows")]
 fn build_proxy_browser_arg(url: &Url) -> Option<String> {
     let host = url.host_str()?;
@@ -190,14 +193,24 @@ fn build_window(
         .unwrap_or_else(|| "pake".to_string());
     let _data_dir = get_data_dir(app, package_name).map_err(tauri::Error::Io)?;
 
-    let window_config = config.windows.first().ok_or_else(|| {
-        tauri::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "pake.json must define at least one window configuration",
-        ))
-    })?;
+    let mut window_config = config
+        .windows
+        .first()
+        .ok_or_else(|| {
+            tauri::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "pake.json must define at least one window configuration",
+            ))
+        })?
+        .clone();
 
     let user_agent = config.user_agent.get();
+
+    #[cfg(target_os = "linux")]
+    {
+        use crate::get_linux_button_position;
+        window_config.window_buttons_position = get_linux_button_position().to_string();
+    }
 
     let config_script = format!(
         "window.pakeConfig = {}",
@@ -501,7 +514,77 @@ fn build_window(
 
     window_builder = window_builder.on_navigation(|_| true);
 
-    window_builder.build()
+    let window = window_builder.build()?;
+
+    #[cfg(target_os = "linux")]
+    {
+        apply_linux_native_decoration_layout(&window);
+    }
+
+    Ok(window)
+}
+
+#[cfg(target_os = "linux")]
+fn apply_linux_native_decoration_layout(window: &tauri::WebviewWindow) {
+    use gtk::glib::object::ObjectExt;
+    use gtk::prelude::*;
+
+    let layout_raw = get_linux_button_layout_raw();
+    if layout_raw.is_empty() {
+        return;
+    }
+
+    // Set gtk-decoration-layout on the global GtkSettings so any HeaderBar
+    // that falls back to the default gets the correct layout.
+    if let Some(settings) = gtk::Settings::default() {
+        settings.set_property("gtk-decoration-layout", layout_raw);
+    }
+
+    let Ok(gtk_window) = window.gtk_window() else {
+        return;
+    };
+
+    // Helper: find the GtkHeaderBar. tao wraps it inside an EventBox,
+    // so we look one level deep into containers.
+    fn find_header_bar(gtk_window: &gtk::ApplicationWindow) -> Option<gtk::HeaderBar> {
+        use gtk::prelude::*;
+        let titlebar = gtk_window.titlebar()?;
+        if let Some(hb) = titlebar.downcast_ref::<gtk::HeaderBar>() {
+            return Some(hb.clone());
+        }
+        if let Some(container) = titlebar.downcast_ref::<gtk::Container>() {
+            for child in container.children() {
+                if let Some(hb) = child.downcast_ref::<gtk::HeaderBar>() {
+                    return Some(hb.clone());
+                }
+            }
+        }
+        None
+    }
+
+    // Apply once now (overrides tao's hardcoded initial layout).
+    if let Some(header_bar) = find_header_bar(&gtk_window) {
+        header_bar.set_decoration_layout(Some(layout_raw));
+
+        // tao resets the layout in its `notify::resizable` handler.
+        // Connect our own handler (runs after tao's) to re-apply.
+        let layout_owned = layout_raw.to_string();
+        gtk_window.connect_notify(Some("resizable"), move |win, _| {
+            use gtk::prelude::*;
+            if let Some(titlebar) = win.titlebar() {
+                if let Some(hb) = titlebar.downcast_ref::<gtk::HeaderBar>() {
+                    hb.set_decoration_layout(Some(&layout_owned));
+                } else if let Some(container) = titlebar.downcast_ref::<gtk::Container>() {
+                    for child in container.children() {
+                        if let Some(hb) = child.downcast_ref::<gtk::HeaderBar>() {
+                            hb.set_decoration_layout(Some(&layout_owned));
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
 }
 
 #[cfg(all(test, target_os = "windows"))]
