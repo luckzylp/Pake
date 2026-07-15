@@ -1557,10 +1557,11 @@ class LinuxBuilder extends BaseBuilder {
         else {
             arch = this.buildArch;
         }
+        const bundleName = `com.pake.${generateLinuxPackageName(name)}`;
         if (this.currentBuildType === 'rpm') {
-            return `${name}-${version}-1.${arch}`;
+            return `${bundleName}-${version}-1.${arch}`;
         }
-        return `${name}_${version}_${arch}`;
+        return `${bundleName}_${version}_${arch}`;
     }
     async build(url) {
         // --no-bundle: build the executable once with no per-format packaging loop.
